@@ -14,37 +14,54 @@ ENTRY = "I clung to 1% for six minutes. Longer than your last relationship."
 MAX_CHARS = 199
 
 
-def main() -> int:
+def verify_entry(entry: str) -> int:
+    """Check the entry against the bounty rules; return 0 if valid."""
     try:
-        ENTRY.encode("utf-8")
+        entry.encode("utf-8")
     except UnicodeEncodeError as exc:
         print(f"FAIL: entry is not valid UTF-8: {exc}", file=sys.stderr)
         return 1
-    if not 1 <= len(ENTRY) <= MAX_CHARS:
+    if not 1 <= len(entry) <= MAX_CHARS:
         print(
-            f"FAIL: entry is {len(ENTRY)} chars, must be 1-{MAX_CHARS}",
+            f"FAIL: entry is {len(entry)} chars, must be 1-{MAX_CHARS}",
             file=sys.stderr,
         )
         return 1
-    if "\n" in ENTRY or "\r" in ENTRY:
+    if "\n" in entry or "\r" in entry:
         print("FAIL: entry must be a single line", file=sys.stderr)
         return 1
-    if not ENTRY.strip():
+    if not entry.strip():
         print("FAIL: entry must not be whitespace-only", file=sys.stderr)
         return 1
+    return 0
 
-    output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+
+def write_entry(entry: str, output_dir: str) -> str:
+    """Write the entry to entry.txt inside output_dir; return its path."""
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "entry.txt")
     with open(output_path, "w", encoding="utf-8") as fh:
-        fh.write(ENTRY + "\n")
+        fh.write(entry + "\n")
+    return output_path
 
+
+def read_back(output_path: str, expected: str) -> int:
+    """Re-read the written file and confirm it matches the entry."""
     with open(output_path, encoding="utf-8") as fh:
         written = fh.read()
-    if written != ENTRY + "\n":
+    if written != expected:
         print("FAIL: written file does not match the entry", file=sys.stderr)
         return 1
+    return 0
 
+
+def main() -> int:
+    if verify_entry(ENTRY) != 0:
+        return 1
+    output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    output_path = write_entry(ENTRY, output_dir)
+    if read_back(output_path, ENTRY + "\n") != 0:
+        return 1
     print(f"OK: wrote {len(ENTRY)}-char entry to {output_path}")
     return 0
 
